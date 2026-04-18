@@ -1,0 +1,61 @@
+# 🐍 Python & uv
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.uv/
+python-wheels/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 🌊 Next.js & Node
+node_modules/
+.next/
+out/
+build/
+dist/
+.npm
+*.log
+.eslintcache
+
+# 🚀 NVIDIA Nsight & CUDA
+# 프로파일링 결과 파일은 용량이 크므로 제외해
+*.nsys-rep
+*.ncu-rep
+*.sqlite
+*.qdrep
+*.qdstrm
+# 컴파일된 바이너리 및 오브젝트 파일
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+# Nsight Compute 임시 파일
+.ncu/
+
+# 🔒 Secrets & Environment
+# API 키나 개인 설정값은 절대 올리면 안 돼!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+
+# 🐳 Docker
+.dockerignore
+
+# 💻 IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# 🤖 Cline / Agent
+# 에이전트가 생성한 임시 작업물이나 로그
+.clinerules
