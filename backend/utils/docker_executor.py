@@ -8,6 +8,8 @@ from typing import Dict, Any, Optional, List
 
 class DockerExecutor:
     def __init__(self, image: str = "cuda-analyzer-runner"):
+        # We assume the image is pre-built as 'cuda-analyzer-runner' 
+        # using our optimized Dockerfile (CUDA 13.0 + Nightly PyTorch)
         self.image = image
 
     def extract_kernel_names(self, cuda_code: str) -> List[str]:
@@ -42,14 +44,20 @@ class DockerExecutor:
             # Build Docker command with dynamic kernel filtering
             # nsys: Use standard --stats=true for broad compatibility
             # ncu: Only profile the detected global kernels with core sections
+            # Privileged and SYS_ADMIN are required for Hardware Counter access
             docker_cmd = [
                 "docker", "run", "--rm",
                 "--gpus", "all",
+                "--privileged",
+                "--cap-add=SYS_ADMIN",
+                "--shm-size=1g",
+                "-e NVIDIA_DRIVER_CAPABILITIES=all",
+                "--pid=host",
                 "-v", f"{tmpdir}:/workspace",
                 "-w", "/workspace",
                 self.image,
                 "bash", "-c",
-                f"nsys profile --stats=true --force-overwrite=true --output=report_%p python3 benchmark.py && "
+                f"nsys profile -t cuda,nvtx,osrt --stats=true --force-overwrite=true --output=report python3 benchmark.py && "
                 f"ncu {ncu_kernel_filter} --section SpeedOfLight,MemoryWorkload --summary python3 benchmark.py"
             ]
 

@@ -1,25 +1,27 @@
-FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
+# Optimized CUDA Development Environment for RTX 50 Series
+FROM nvidia/cuda:13.0.0-devel-ubuntu22.04
 
-# 1. 환경 변수 설정 (인터랙션 방지 및 한글 깨짐 방지)
+# Set environment variables for non-interactive installs and encoding
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONIOENCODING=utf-8
 
-# 2. 필수 도구 및 Nsight 패키지 설치
+# 1. Install essential build tools and Ninja for parallel compilation
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
     git \
+    ninja-build \
     && apt-get install -y \
-    cuda-nsight-systems-12-2 \
-    cuda-nsight-compute-12-2 \
+    cuda-nsight-systems-13-0 \
+    cuda-nsight-compute-13-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Path 설정 (NVIDIA 도구들을 어디서든 실행할 수 있게)
+# 2. Configure environment paths for NVIDIA tools
 ENV PATH="/usr/local/cuda/bin:/opt/nvidia/nsight-systems/bin:${PATH}"
 
-# 4. PyTorch 설치 (CUDA 12.1/12.2 호환 버전으로 명시)
+# 3. Install PyTorch with CUDA 13.0 support for sm_120 compatibility
 RUN pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir torch numpy --index-url https://download.pytorch.org/whl/cu121
+    pip3 install --no-cache-dir torch numpy --index-url https://download.pytorch.org/whl/cu130
 
 WORKDIR /workspace
 

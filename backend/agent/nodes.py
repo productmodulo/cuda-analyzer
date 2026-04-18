@@ -1,6 +1,7 @@
 import json
 from typing import Dict, Any, List
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from agent.state import AgentState, AgentStatus
@@ -18,9 +19,18 @@ MODEL_SUPER = "nvidia/nemotron-3-super-120b-a12b"
 DEFAULT_MODEL = MODEL_NANO
 
 def get_llm(model=DEFAULT_MODEL):
-    return ChatNVIDIA(
-        model=model,
-        max_tokens=16384,
+    # --- NVIDIA Nemotron ---
+    # return ChatNVIDIA(
+    #     model=model,
+    #     max_tokens=16384,
+    #     temperature=1.0,
+    #     top_p=0.95,
+    # )
+
+    # --- Google Gemini ---
+    return ChatGoogleGenerativeAI(
+        model="gemini-3-flash-preview",
+        max_output_tokens=16384,
         temperature=1.0,
         top_p=0.95,
     )
@@ -237,7 +247,7 @@ async def visualization_node(state: AgentState, config: RunnableConfig) -> Dict[
         "history": json.dumps(state.optimization_log)
     }, config)
     
-    component_code = extract_code_block(response.content, "jsx")
+    component_code = extract_code_block(response.content, "html")
     if not component_code:
         component_code = extract_code_block(response.content)
 

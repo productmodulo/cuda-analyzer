@@ -191,17 +191,15 @@ export default function Home() {
 
                         {/* 1.5. Dynamic Visualization Component (if exists) */}
                         {msg.viz_data.component_code && (
-                          <div className="bg-neutral-900 p-6 rounded-xl border border-blue-900/30 shadow-inner">
-                            <h4 className="text-xs font-bold text-blue-400 uppercase mb-4 flex items-center gap-2">
+                          <div className="bg-neutral-900 p-6 rounded-xl border border-blue-900/30 shadow-inner overflow-hidden">
+                            <h4 className="text-xs font-bold text-blue-400 uppercase mb-4 px-6 pt-6 flex items-center gap-2">
                               <span className="animate-pulse">📊</span> AI Generated Insights
                             </h4>
-                            <div className="prose prose-invert max-w-none">
-                              {/* Since we can't safely eval JSX string without heavy libs, 
-                                  we display it as an advanced code insight for now */}
-                              <ReactMarkdown components={CodeRenderer}>
-                                {`\`\`\`jsx\n${msg.viz_data.component_code}\n\`\`\``}
-                              </ReactMarkdown>
-                            </div>
+                            {/* Render AI generated HTML/Tailwind snippet */}
+                            <div 
+                              className="w-full h-full"
+                              dangerouslySetInnerHTML={{ __html: msg.viz_data.component_code }}
+                            />
                           </div>
                         )}
                         

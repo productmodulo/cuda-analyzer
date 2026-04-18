@@ -3,56 +3,62 @@ import functools
 import json
 import os
 from typing import Any, Dict, Callable
-from loguru import logger
+from datetime import datetime
 
-# 프로젝트 루트 기준 logs 폴더 생성
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+# 프로젝트 루트 기준 logs 폴더 설정
+CWD = os.getcwd()
+LOG_DIR = os.path.join(CWD, "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
 
-# loguru 설정: 콘솔 출력 및 파일 저장 (날짜별 순환 및 압축)
-LOG_FILE = os.path.join(LOG_DIR, "agent_execution.log")
-logger.add(
-    LOG_FILE, 
-    rotation="10 MB", 
-    retention="10 days", 
-    compression="zip", 
-    encoding="utf-8",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"
-)
+# JSONL 로그 파일 경로
+JSONL_LOG_FILE = os.path.join(LOG_DIR, "agent_execution.jsonl")
+
+def append_jsonl_log(data: Dict[str, Any]):
+    """JSONL 파일에 로그 엔트리를 조용히 추가합니다."""
+    try:
+        line = json.dumps(data, ensure_ascii=False, default=str)
+        with open(JSONL_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass # Minimal logging should not crash the main flow
 
 def log_node_execution(func: Callable):
     """
-    LangGraph 노드 실행을 loguru로 로깅하는 데코레이터.
-    raw input, raw output, 실행 시간을 logs/ 폴더에 기록합니다.
+    LangGraph 노드 실행을 JSONL 파일로 로깅하는 데코레이터 (Minimal).
     """
     @functools.wraps(func)
-    async def wrapper(state: Dict[str, Any], config: Any = None, *args, **kwargs):
+    async def wrapper(state: Any, config: Any = None, *args, **kwargs):
+        state_dict = state.dict() if hasattr(state, "dict") else state
         node_name = func.__name__
         start_time = time.perf_counter()
-        
-        # 입력 로깅
-        logger.info(f"--- Node Start: {node_name} ---")
-        logger.info(f"Node Input [{node_name}]: {json.dumps(state, default=str, ensure_ascii=False)}")
+        timestamp = datetime.now().isoformat()
         
         try:
-            # 노드 실행
             result = await func(state, config, *args, **kwargs)
+            duration = time.perf_counter() - start_time
             
-            end_time = time.perf_counter()
-            duration = end_time - start_time
+            result_dict = result if isinstance(result, dict) else (result.dict() if hasattr(result, "dict") else str(result))
             
-            # 출력 로깅
-            logger.info(f"Node Output [{node_name}]: {json.dumps(result, default=str, ensure_ascii=False)}")
-            logger.info(f"Node Duration [{node_name}]: {duration:.4f} seconds")
-            logger.info(f"--- Node End: {node_name} ---")
-            
+            append_jsonl_log({
+                "timestamp": timestamp,
+                "node": node_name,
+                "status": "success",
+                "duration_sec": round(duration, 4),
+                "input": state_dict,
+                "output": result_dict
+            })
             return result
+            
         except Exception as e:
-            end_time = time.perf_counter()
-            duration = end_time - start_time
-            logger.error(f"Node Error [{node_name}]: {str(e)}")
-            logger.error(f"Node Duration [{node_name}]: {duration:.4f} seconds (Failed)")
+            duration = time.perf_counter() - start_time
+            append_jsonl_log({
+                "timestamp": timestamp,
+                "node": node_name,
+                "status": "failed",
+                "duration_sec": round(duration, 4),
+                "input": state_dict,
+                "error": str(e)
+            })
             raise e
             
     return wrapper

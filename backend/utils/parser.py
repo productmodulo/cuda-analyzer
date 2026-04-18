@@ -9,6 +9,16 @@ def extract_code_block(text: str, language: str = "") -> str:
     
     If NO code block is found, it returns an empty string instead of the whole text.
     """
+    # Handle list-type content (e.g., from Gemini multi-modal response)
+    if isinstance(text, list):
+        extracted_text = ""
+        for item in text:
+            if isinstance(item, dict) and "text" in item:
+                extracted_text += item["text"]
+            elif isinstance(item, str):
+                extracted_text += item
+        text = extracted_text
+
     # Pattern to match ```[language]\n[code]\n```
     if language:
         pattern = rf"```(?:{language})\n?(.*?)\n?```"
