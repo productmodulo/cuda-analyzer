@@ -5,11 +5,11 @@ from agent.state import AgentState, AgentStatus
 async def invoke_agent(cuda_code: str, question: str, max_iterations: int = 3):
     app = create_agent_graph()
     
-    # Initial state
+    # Initial state with new structure
     initial_state = AgentState(
-        original_code=cuda_code,
-        user_question=question,
-        iteration_count=0,
+        raw_cuda_code=cuda_code,
+        user_query=question,
+        iteration=0,
         max_iterations=max_iterations,
         status=AgentStatus.START
     )

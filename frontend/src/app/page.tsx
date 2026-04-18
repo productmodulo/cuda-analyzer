@@ -7,23 +7,28 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 interface KernelOptimization {
-  kernel_name: string;
-  bottleneck_analysis: string;
-  optimization_suggestion: string;
-  optimized_code: string;
+  iteration: number;
+  summary: string;
+  time: number;
 }
 
 interface AnalysisResult {
-  summary: string;
-  optimizations: KernelOptimization[];
-  estimated_speedup?: string | null;
+  title: string;
+  original_code: string;
+  best_code: string;
+  original_metrics: any;
+  best_metrics: any;
+  optimization_log: KernelOptimization[];
+  final_report: string;
+  component_code?: string;
 }
 
 interface Message {
   role: "user" | "agent";
   text?: string;
   think?: string;
-  analysisResult?: AnalysisResult;
+  viz_data?: AnalysisResult;
+  error?: string;
 }
 
 export default function Home() {
@@ -68,9 +73,12 @@ export default function Home() {
       if (!response.ok) throw new Error("API Request Failed");
 
       const data = await response.json();
-      const analysisResult: AnalysisResult = data.analysis_result;
-
-      setMessages((prev) => [...prev, { role: "agent", analysisResult }]);
+      
+      if (data.error_message) {
+        setMessages((prev) => [...prev, { role: "agent", error: data.error_message }]);
+      } else {
+        setMessages((prev) => [...prev, { role: "agent", viz_data: data.viz_data }]);
+      }
     } catch (error) {
       setMessages((prev) => [...prev, { role: "agent", text: "서버와 연결할 수 없거나 분석 중 오류가 발생했습니다." }]);
     } finally {
@@ -165,56 +173,99 @@ export default function Home() {
                         </ReactMarkdown>
                       </div>
                     )}
-                    {msg.analysisResult && (
-                      <div className="flex flex-col gap-4">
-                        <div className="prose prose-invert max-w-none break-words bg-neutral-900 p-3 rounded border border-neutral-700">
-                          <h3 className="text-blue-400 font-bold mt-0">Analysis Summary</h3>
+                    {msg.error && (
+                      <div className="bg-red-900/20 border border-red-900/50 p-4 rounded-lg text-red-400 text-sm">
+                        <strong className="block mb-1">❌ Error Occurred</strong>
+                        {msg.error}
+                      </div>
+                    )}
+
+                    {msg.viz_data && (
+                      <div className="flex flex-col gap-6">
+                        {/* 1. Final Markdown Report */}
+                        <div className="prose prose-invert max-w-none break-words bg-neutral-900 p-6 rounded-xl border border-neutral-700 shadow-xl">
                           <ReactMarkdown components={CodeRenderer}>
-                            {msg.analysisResult.summary}
+                            {msg.viz_data.final_report}
                           </ReactMarkdown>
                         </div>
-                        
-                        {msg.analysisResult.estimated_speedup && (
-                          <div className="bg-green-900/30 text-green-400 px-3 py-2 rounded border border-green-800/50 font-medium">
-                            🚀 Estimated Speedup: {msg.analysisResult.estimated_speedup}
+
+                        {/* 1.5. Dynamic Visualization Component (if exists) */}
+                        {msg.viz_data.component_code && (
+                          <div className="bg-neutral-900 p-6 rounded-xl border border-blue-900/30 shadow-inner">
+                            <h4 className="text-xs font-bold text-blue-400 uppercase mb-4 flex items-center gap-2">
+                              <span className="animate-pulse">📊</span> AI Generated Insights
+                            </h4>
+                            <div className="prose prose-invert max-w-none">
+                              {/* Since we can't safely eval JSX string without heavy libs, 
+                                  we display it as an advanced code insight for now */}
+                              <ReactMarkdown components={CodeRenderer}>
+                                {`\`\`\`jsx\n${msg.viz_data.component_code}\n\`\`\``}
+                              </ReactMarkdown>
+                            </div>
                           </div>
                         )}
+                        
+                        {/* 2. Optimization Log Table */}
+                        <div className="bg-neutral-950 p-4 rounded-lg border border-neutral-800">
+                          <h4 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-3">Optimization History</h4>
+                          <div className="overflow-hidden rounded-md border border-neutral-800">
+                            <table className="w-full text-left text-sm border-collapse">
+                              <thead>
+                                <tr className="bg-neutral-900 text-neutral-300">
+                                  <th className="p-2 border-b border-neutral-800">Iter</th>
+                                  <th className="p-2 border-b border-neutral-800">Summary</th>
+                                  <th className="p-2 border-b border-neutral-800 text-right">Time (ms)</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {msg.viz_data.optimization_log.map((log, idx) => (
+                                  <tr key={idx} className="border-b border-neutral-900 hover:bg-neutral-900/50 transition-colors">
+                                    <td className="p-2 text-neutral-500 font-mono">{log.iteration}</td>
+                                    <td className="p-2 text-neutral-200">{log.summary}</td>
+                                    <td className="p-2 text-right text-green-400 font-mono">{log.time.toFixed(3)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
 
-                        {msg.analysisResult.optimizations.map((opt, idx) => (
-                          <div key={idx} className="bg-neutral-950 p-4 rounded border border-neutral-700 flex flex-col gap-3">
-                            <h4 className="text-orange-400 font-bold text-lg m-0 border-b border-neutral-800 pb-2">
-                              Kernel: {opt.kernel_name}
-                            </h4>
-                            
-                            <div>
-                              <strong className="text-neutral-400 block mb-1">Bottleneck Analysis:</strong>
-                              <div className="prose prose-invert max-w-none text-sm">
-                                <ReactMarkdown components={CodeRenderer}>{opt.bottleneck_analysis}</ReactMarkdown>
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <strong className="text-neutral-400 block mb-1">Optimization Suggestion:</strong>
-                              <div className="prose prose-invert max-w-none text-sm">
-                                <ReactMarkdown components={CodeRenderer}>{opt.optimization_suggestion}</ReactMarkdown>
-                              </div>
-                            </div>
-
-                            <div>
-                              <strong className="text-neutral-400 block mb-1">Optimized Code:</strong>
-                              <div className="text-sm">
-                                <SyntaxHighlighter
-                                  style={vscDarkPlus as any}
-                                  language="cpp"
-                                  PreTag="div"
-                                  customStyle={{ margin: 0, borderRadius: "0.25rem" }}
-                                >
-                                  {opt.optimized_code}
-                                </SyntaxHighlighter>
-                              </div>
+                        {/* 3. Metrics Comparison */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-neutral-900 p-4 rounded-lg border border-neutral-800">
+                            <span className="text-xs font-bold text-neutral-500 uppercase block mb-1">Baseline</span>
+                            <div className="text-2xl font-mono text-neutral-300">
+                              {msg.viz_data.original_metrics.execution_time_ms.toFixed(3)}<span className="text-sm ml-1 text-neutral-500">ms</span>
                             </div>
                           </div>
-                        ))}
+                          <div className="bg-neutral-900 p-4 rounded-lg border border-neutral-800">
+                            <span className="text-xs font-bold text-green-500 uppercase block mb-1">Best Optimized</span>
+                            <div className="text-2xl font-mono text-green-400">
+                              {msg.viz_data.best_metrics.execution_time_ms.toFixed(3)}<span className="text-sm ml-1 text-neutral-500">ms</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 4. Best Code Snippet */}
+                        <div className="bg-neutral-950 rounded-lg border border-neutral-800 overflow-hidden">
+                          <div className="bg-neutral-900 px-4 py-2 border-b border-neutral-800 flex justify-between items-center">
+                            <span className="text-xs font-bold text-neutral-400 uppercase">Best Performing Kernel</span>
+                            <button 
+                              onClick={() => setCudaCode(msg.viz_data!.best_code)}
+                              className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition-colors"
+                            >
+                              Load into Editor
+                            </button>
+                          </div>
+                          <SyntaxHighlighter
+                            style={vscDarkPlus as any}
+                            language="cpp"
+                            PreTag="div"
+                            customStyle={{ margin: 0, padding: "1rem", fontSize: "0.8rem" }}
+                          >
+                            {msg.viz_data.best_code}
+                          </SyntaxHighlighter>
+                        </div>
                       </div>
                     )}
                   </div>
